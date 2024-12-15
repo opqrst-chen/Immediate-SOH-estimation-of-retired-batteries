@@ -11,6 +11,9 @@ from scipy.stats import gaussian_kde
 from scipy.special import kl_div
 from scipy.stats import entropy
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 def plot_scatter(SOC, Fts, augmented_SOC, augmented_Fts, show_figure=True):
     # Plotting the original vs augmented data using SOC
@@ -172,3 +175,85 @@ def plot_kl_divergences_bar_chart(
     # 输出KL散度值
     for i, kl in enumerate(kl_divergences):
         print(f"KL Divergence for U{i+1}: {kl:.4f}")
+
+
+### myTL.py ###
+
+
+def plot_parity(true_values, predicted_values, title):
+    # Function to create a parity plot
+    plt.figure(figsize=(8, 8))
+    plt.scatter(true_values, predicted_values, c="blue", label="Data", alpha=0.3)
+    plt.xlabel("True Values")
+    plt.ylabel("Predictions")
+    plt.title(title)
+
+    # Draw parity line
+    min_val = min(min(true_values), min(predicted_values))
+    max_val = max(max(true_values), max(predicted_values))
+    plt.plot([min_val, max_val], [min_val, max_val], "r--", label="Parity Line")
+
+    plt.legend()
+
+
+# 绘制损失函数随训练轮次变化的图像
+def plot_losses(
+    total_loss_list,
+    task_loss_source_list,
+    task_loss_target_list,
+    coral_loss_list,
+    soc_loss_source_list,
+    soc_loss_target_list,
+):
+    plt.figure(figsize=(12, 6))
+    plt.plot(total_loss_list, label="Total Loss")
+    plt.plot(task_loss_source_list, label="Task Loss Source")
+    plt.plot(task_loss_target_list, label="Task Loss Target")
+    plt.plot(coral_loss_list, label="Coral Loss")
+    plt.plot(soc_loss_source_list, label="SOC Loss Source")
+    plt.plot(soc_loss_target_list, label="SOC Loss Target")
+
+    plt.title("Loss vs. Epochs")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.show()
+
+
+# 绘制源领域和目标领域特征的分布
+def plot_feature_distribution(model, X_test_Cata1, X_test_Cata2, feature_id=0):
+
+    # Extract features from source and target domains after training
+    # Extract features
+    source_features_transformed = model.feature_extractor.predict(X_test_Cata1)
+    target_features_transformed = model.feature_extractor.predict(X_test_Cata2)
+    # 检查方差为零的特征并跳过
+    if np.var(source_features_transformed[:, feature_id]) == 0:
+        print(
+            f"Warning: Feature {feature_id} in source domain has 0 variance and will be skipped."
+        )
+    else:
+        sns.kdeplot(
+            source_features_transformed[:, feature_id],
+            fill=True,
+            color="blue",
+            label="Source (Transformed)",
+        )
+
+    if np.var(target_features_transformed[:, feature_id]) == 0:
+        print(
+            f"Warning: Feature {feature_id} in target domain has 0 variance and will be skipped."
+        )
+    else:
+        sns.kdeplot(
+            target_features_transformed[:, feature_id],
+            fill=True,
+            color="red",
+            label="Target (Transformed)",
+        )
+
+    plt.xlabel("Feature Value")
+    plt.ylabel("Density")
+    plt.title("Density of First Feature: Source vs. Target")
+    plt.legend()
+    plt.show()

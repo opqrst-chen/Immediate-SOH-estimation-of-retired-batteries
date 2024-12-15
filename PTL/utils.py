@@ -12,6 +12,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 from scipy.stats import entropy
+import seaborn as sns
+from scipy.stats import pearsonr
+from math import sqrt
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVR
+from tensorflow.keras import layers
+import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 
 def set_random_seeds(seed_value: int = SEED_VALUE) -> None:
@@ -90,3 +103,84 @@ def calculate_kl_divergences(Fts, augmented_Fts, n_bins=50):
         kl_div = entropy(pk=counts1 + 1e-10, qk=counts2 + 1e-10)
         kl_divergences.append(kl_div)
     return kl_divergences
+
+
+### myTL.py ###
+
+
+def coral_loss(source, target):
+    """
+    计算源域和目标域之间的CORAL损失（Correlation Alignment Loss）。
+
+    CORAL损失通过最小化源域和目标域的协方差矩阵之间的差异来实现特征对齐。
+
+    :param source: 源域的特征矩阵，形状为 [batch_size, feature_dim]
+    :param target: 目标域的特征矩阵，形状为 [batch_size, feature_dim]
+    :return: CORAL损失
+    """
+    # 计算源域的协方差矩阵
+    source_coral = tf.matmul(tf.transpose(source), source)
+
+    # 计算目标域的协方差矩阵
+    target_coral = tf.matmul(tf.transpose(target), target)
+
+    # 计算协方差矩阵的差异并求平方
+    loss = tf.reduce_mean(tf.square(source_coral - target_coral))
+
+    return loss
+
+
+def calculate_mape(y_true, y_pred):
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    nonzero_elements = y_true != 0
+    mape = (
+        np.abs(
+            (y_true[nonzero_elements] - y_pred[nonzero_elements])
+            / y_true[nonzero_elements]
+        ).mean()
+        * 100
+    )
+    return mape
+
+
+def calculate_maxpe(y_true, y_pred):
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    nonzero_elements = y_true != 0
+    maxpe = (
+        np.abs(
+            (y_true[nonzero_elements] - y_pred[nonzero_elements])
+            / y_true[nonzero_elements]
+        ).max()
+        * 100
+    )
+    return maxpe
+
+
+def evaluate_soc_predictions(model, X_test, SOC_test, soc_scaler, domain="Source"):
+    """
+    使用模型预测SOC，并计算MAPE和MaxPE进行评估。
+
+    :param model: 训练好的模型
+    :param X_test: 测试集特征
+    :param SOC_test: 真实的SOC值
+    :param soc_scaler: SOC的标准化器，用于逆变换
+    :param domain: 当前评估的域 ("Source" 或 "Target")
+    :return: MAPE和MaxPE值
+    """
+    # 使用模型预测SOC
+    SOC_pred = model.soc_estimator.predict(X_test)
+
+    # 逆变换SOC预测值
+    SOC_pred_inv = soc_scaler.inverse_transform(SOC_pred)
+
+    # 逆变换真实SOC值
+    SOC_test_inv = soc_scaler.inverse_transform(SOC_test.reshape(-1, 1))
+
+    # 计算MAPE和MaxPE
+    mape_soc = calculate_mape(SOC_test_inv, SOC_pred_inv)
+    maxpe_soc = calculate_maxpe(SOC_test_inv, SOC_pred_inv)
+
+    # 打印结果
+    print(f"{domain} Domain SOC: MAPE = {mape_soc:.2f}%, MaxPE = {maxpe_soc:.2f}%")
+
+    return mape_soc, maxpe_soc
