@@ -70,3 +70,23 @@ def save_to_excel(combined_df, augmented_df):
     augmented_df.to_excel(
         "data/processed/augmented_data_output_Pouch52.xlsx", index=False
     )
+
+
+def calculate_kl_divergences(Fts, augmented_Fts, n_bins=50):
+    # Function to calculate KL divergence for each feature
+    kl_divergences = []
+    for i in range(Fts.shape[1]):
+        original_data = Fts[:, i]
+        augmented_data = augmented_Fts[:, i]
+
+        # Calculate histograms
+        counts1, bin_edges1 = np.histogram(original_data, bins=n_bins, density=True)
+        counts2, bin_edges2 = np.histogram(
+            augmented_data, bins=bin_edges1, density=True
+        )
+
+        # Calculate KL divergence
+        # Adding small constant for numerical stability
+        kl_div = entropy(pk=counts1 + 1e-10, qk=counts2 + 1e-10)
+        kl_divergences.append(kl_div)
+    return kl_divergences

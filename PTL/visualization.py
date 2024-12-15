@@ -132,3 +132,43 @@ def plot_histogram_and_kde(original_data, augmented_data, n_bins=50):
     plt.show()
 
     return kl_div
+
+
+def plot_kl_divergences_bar_chart(
+    kl_divergences, Fts, output_path="outputs/figures/kl_divergences_bar_chart.jpg"
+):
+    """
+    绘制KL散度的条形图，并输出每个特征的KL散度值。
+
+    参数：
+    kl_divergences (list or np.array): 每个特征的KL散度值。
+    Fts (np.array): 原始数据矩阵，用于确定特征数量（例如U1, U2, ..., Un）。
+    output_path (str): 输出保存图像的路径，默认为"outputs/figures/kl_divergences_bar_chart.jpg"。
+    """
+    # 绘制条形图
+    plt.figure(figsize=(4, 4))
+    plt.bar(
+        [f"U{i+1}" for i in range(Fts.shape[1])],
+        kl_divergences,
+        color="gray",
+        edgecolor="black",
+    )
+    plt.ylabel("KL Divergence", fontsize=10)
+
+    # 设置y轴范围
+    plt.ylim(0, 1)
+
+    # 设置x轴刻度和y轴刻度字体大小
+    plt.xticks(rotation=90, fontsize=10)
+    plt.yticks(fontsize=10)
+
+    # 自动调整布局
+    plt.tight_layout()
+
+    # 保存图像
+    plt.savefig(output_path, dpi=300)
+    plt.show()
+
+    # 输出KL散度值
+    for i, kl in enumerate(kl_divergences):
+        print(f"KL Divergence for U{i+1}: {kl:.4f}")
