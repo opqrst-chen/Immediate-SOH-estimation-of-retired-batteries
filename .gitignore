@@ -1,0 +1,6 @@
+.history/
+data/
+__pycache__/
+PTL copy/
+outputs/
+.DS_Store
