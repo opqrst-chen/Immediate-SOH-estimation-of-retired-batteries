@@ -1,4 +1,6 @@
 # __init__.py
+
+# 数据处理模块
 from .data_process import (
     load_data,
     augment_data,
@@ -8,6 +10,8 @@ from .data_process import (
     filter_data_by_cata_test,
     prepare_datasets,
 )
+
+# 模型构建模块
 from .model import (
     build_vae,
     sampling,
@@ -16,6 +20,8 @@ from .model import (
     create_task_net,
     CoralModel,
 )
+
+# 可视化模块
 from .visualization import (
     plot_latent_space,
     plot_histogram_and_kde,
@@ -23,7 +29,11 @@ from .visualization import (
     plot_losses,
     plot_feature_distribution,
 )
+
+# 评估模块
 from .evaluator import compute_kl_divergence, evaluate_model
+
+# 工具函数模块
 from .utils import (
     set_random_seeds,
     limit_threads,
@@ -32,4 +42,6 @@ from .utils import (
     calculate_maxpe,
     evaluate_soc_predictions,
 )
+
+# 配置参数
 from .config import *

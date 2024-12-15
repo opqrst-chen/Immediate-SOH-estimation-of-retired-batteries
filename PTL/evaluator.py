@@ -1,16 +1,12 @@
 # PTL/evaluator.py
-from scipy.stats import entropy
+from scipy.stats import entropy, pearsonr
 import numpy as np
 from sklearn.metrics import mean_squared_error
-from typing import List, Dict, Union
-import numpy as np
 from sklearn.preprocessing import StandardScaler
+from typing import List, Dict, Union, Optional
 from .utils import calculate_mape, calculate_maxpe
-from scipy.stats import pearsonr
-
-import matplotlib.pyplot as plt
-from scipy.stats import pearsonr
 from .visualization import plot_parity
+import matplotlib.pyplot as plt
 
 
 def evaluate_model(
@@ -22,17 +18,17 @@ def evaluate_model(
     Evaluate model performance based on various metrics.
 
     Parameters:
-    - true_values: Array of true target values (ground truth).
-    - predictions: Array of predicted target values from the model.
-    - metrics: A list of metrics to calculate. Options include:
+    - true_values (np.ndarray): Array of true target values (ground truth).
+    - predictions (np.ndarray): Array of predicted target values from the model.
+    - metrics (List[str]): A list of metrics to calculate. Options include:
         - "mse": Mean Squared Error.
         - "mae": Mean Absolute Error.
         - "mape": Mean Absolute Percentage Error.
 
     Returns:
-    - A dictionary where keys are metric names and values are the computed metric scores.
+    - Dict[str, float]: A dictionary where keys are metric names and values are the computed metric scores.
     """
-    results = {}
+    results: Dict[str, float] = {}
 
     if "mse" in metrics:
         mse = mean_squared_error(true_values, predictions)
@@ -56,12 +52,12 @@ def compute_kl_divergence(
     Compute the Kullback-Leibler (KL) divergence between two distributions.
 
     Parameters:
-    - original_data: The original data distribution as a 1D array.
-    - augmented_data: The augmented data distribution as a 1D array.
-    - n_bins: Number of bins for the histogram (default: 50).
+    - original_data (np.ndarray): The original data distribution as a 1D array.
+    - augmented_data (np.ndarray): The augmented data distribution as a 1D array.
+    - n_bins (int): Number of bins for the histogram (default: 50).
 
     Returns:
-    - kl_div: The computed KL divergence value, representing how much one distribution diverges from the other.
+    - float: The computed KL divergence value, representing how much one distribution diverges from the other.
     """
     # Compute histogram for original data
     counts1, bin_edges1 = np.histogram(original_data, bins=n_bins, density=True)
@@ -79,14 +75,29 @@ def compute_kl_divergence(
 
 # 通用的预测和评估函数
 def evaluate_and_plot(
-    model,
-    X_test,
-    y_test,
-    label_scaler,
-    SOC_scaler,
-    soc_estimator=None,
-    domain_name="Domain",
-):
+    model: object,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    label_scaler: StandardScaler,
+    SOC_scaler: Optional[StandardScaler] = None,
+    soc_estimator: Optional[object] = None,
+    domain_name: str = "Domain",
+) -> None:
+    """
+    Predict and evaluate the model's performance, including visualizing results and computing error metrics.
+
+    Parameters:
+    - model (object): Trained model used for prediction.
+    - X_test (np.ndarray): Test features.
+    - y_test (np.ndarray): True test labels (ground truth).
+    - label_scaler (StandardScaler): Scaler used for inverse transforming predictions and true values.
+    - SOC_scaler (Optional[StandardScaler]): Scaler for state of charge (SOC) values (optional).
+    - soc_estimator (Optional[object]): A model for estimating SOC (optional).
+    - domain_name (str): Name of the domain for displaying results (default: "Domain").
+
+    Returns:
+    - None: This function prints metrics and plots, but does not return any values.
+    """
     # 预测并反向变换
     y_pred = model.predict(X_test)
     y_pred_inv = label_scaler.inverse_transform(y_pred)
@@ -131,44 +142,3 @@ def evaluate_and_plot(
             SOC_pred_inv.flatten(),
             f"Parity Plot: {domain_name} SOC",
         )
-
-
-# def evaluate_model(
-#     model, X_test_Cata1, y_test_Cata1, X_test_Cata2, y_test_Cata2, label_scaler_SOH
-# ):
-#     # Predict on the source domain and evaluate
-#     y_pred_source = model.predict(X_test_Cata1)
-#     y_pred_source_inv = label_scaler_SOH.inverse_transform(y_pred_source)
-#     y_test_source_inv = label_scaler_SOH.inverse_transform(y_test_Cata1.reshape(-1, 1))
-#     mape_source = calculate_mape(y_test_source_inv, y_pred_source_inv)
-#     maxpe_source = calculate_maxpe(y_test_source_inv, y_pred_source_inv)
-#     print(f"Source Domain: MAPE = {mape_source}, MaxPE = {maxpe_source}")
-#     # Predict on the target domain and evaluate
-#     y_pred_target = model.predict(X_test_Cata2)
-#     y_pred_target_inv = label_scaler_SOH.inverse_transform(y_pred_target)
-#     y_test_target_inv = label_scaler_SOH.inverse_transform(y_test_Cata2.reshape(-1, 1))
-#     mape_target = calculate_mape(y_test_target_inv, y_pred_target_inv)
-#     maxpe_target = calculate_maxpe(y_test_target_inv, y_pred_target_inv)
-#     print(f"Target Domain: MAPE = {mape_target}, MaxPE = {maxpe_target}")
-
-#     return (
-#         (y_pred_source_inv, y_test_source_inv),
-#         (y_pred_target_inv, y_test_target_inv),
-#         (mape_source, maxpe_source, mape_target, maxpe_target),
-#     )
-
-
-# def evaluate_pearson_correlation(
-#     y_test_source_inv, y_pred_source_inv, y_test_target_inv, y_pred_target_inv
-# ):
-#     # Calculate and print Pearson correlation for source domain
-#     pearson_corr_source, _ = pearsonr(
-#         y_test_source_inv.flatten(), y_pred_source_inv.flatten()
-#     )
-#     print(f"Source Domain: Pearson Correlation = {pearson_corr_source}")
-#     # Calculate and print Pearson correlation for target domain
-#     pearson_corr_target, _ = pearsonr(
-#         y_test_target_inv.flatten(), y_pred_target_inv.flatten()
-#     )
-#     print(f"Target Domain: Pearson Correlation = {pearson_corr_target}")
-#     return pearson_corr_source, pearson_corr_target

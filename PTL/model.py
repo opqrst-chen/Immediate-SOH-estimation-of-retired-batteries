@@ -1,4 +1,5 @@
 # PTL/model.py
+
 from .config import LATENT_DIM, INTERMEDIATE_DIM, ORIGINAL_DIM
 import tensorflow as tf
 from keras.losses import mean_squared_error
@@ -14,13 +15,9 @@ import seaborn as sns
 from scipy.stats import pearsonr
 from math import sqrt
 
-import tensorflow as tf
-from tensorflow.keras import layers
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
@@ -28,6 +25,7 @@ from tensorflow.keras import layers
 from .utils import coral_loss
 
 
+# Sampling function for Variational Autoencoder (VAE)
 def sampling(args: Tuple[tf.Tensor, tf.Tensor]) -> tf.Tensor:
     """
     Sampling function for Variational Autoencoder (VAE).
@@ -47,6 +45,7 @@ def sampling(args: Tuple[tf.Tensor, tf.Tensor]) -> tf.Tensor:
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
 
+# Build the VAE model with encoder and decoder
 def build_vae() -> Tuple[Model, Model, Model]:
     """
     Builds the Variational Autoencoder (VAE) model, along with the encoder and decoder components.
@@ -60,48 +59,40 @@ def build_vae() -> Tuple[Model, Model, Model]:
     - encoder: The encoder part of the VAE model (Keras Model).
     - decoder: The decoder part of the VAE model (Keras Model).
     """
-    # VAE Architecture - Encoder
-    # Input layer for the original data
+    # Encoder
     x = Input(shape=(ORIGINAL_DIM,), name="input_layer")
-    h = Dense(INTERMEDIATE_DIM, activation="relu", name="encoder_dense")(
-        x
-    )  # Encoder hidden layer
-    z_mean = Dense(LATENT_DIM, name="z_mean")(h)  # Latent mean
-    z_log_var = Dense(LATENT_DIM, name="z_log_var")(h)  # Latent log variance
+    h = Dense(INTERMEDIATE_DIM, activation="relu", name="encoder_dense")(x)
+    z_mean = Dense(LATENT_DIM, name="z_mean")(h)
+    z_log_var = Dense(LATENT_DIM, name="z_log_var")(h)
     z = Lambda(sampling, output_shape=(LATENT_DIM,), name="sampling")(
         [z_mean, z_log_var]
-    )  # Sampling from latent space
-    encoder = Model(x, z, name="encoder")  # Encoder model
+    )
+    encoder = Model(x, z, name="encoder")
 
-    # VAE Architecture - Decoder
-    # Decoder hidden layer
+    # Decoder
     decoder_h = Dense(INTERMEDIATE_DIM, activation="relu")
-    # Output layer for reconstructed data
     decoder_mean = Dense(ORIGINAL_DIM, activation="sigmoid")
-    # Latent vector input to decoder
     decoder_input = Input(shape=(LATENT_DIM,), name="decoder_input")
-    _h_decoded = decoder_h(decoder_input)  # Apply decoder hidden layer
-    _x_decoded_mean = decoder_mean(_h_decoded)  # Apply decoder output layer
-    decoder = Model(decoder_input, _x_decoded_mean, name="decoder")  # Decoder model
+    _h_decoded = decoder_h(decoder_input)
+    _x_decoded_mean = decoder_mean(_h_decoded)
+    decoder = Model(decoder_input, _x_decoded_mean, name="decoder")
 
     # VAE Model
-    # Reconstruct the input data from the latent space representation
     vae_output = decoder(encoder(x))
-    vae = Model(x, vae_output, name="vae")  # Full VAE model
+    vae = Model(x, vae_output, name="vae")
 
     # Loss Calculation
-    xent_loss = ORIGINAL_DIM * mean_squared_error(x, vae_output)  # Reconstruction loss
-    kl_weight = 1  # Weight for the KL divergence term
+    xent_loss = ORIGINAL_DIM * mean_squared_error(x, vae_output)
+    kl_weight = 1
     kl_loss = (
         -kl_weight
         * 0.5
         * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
-    )  # KL divergence
-    # Total VAE loss (reconstruction + KL)
+    )
     vae_loss = K.mean(xent_loss + kl_loss)
 
-    vae.add_loss(vae_loss)  # Add the VAE loss to the model
-    vae.compile(optimizer=Adam())  # Compile the model using Adam optimizer
+    vae.add_loss(vae_loss)
+    vae.compile(optimizer=Adam())
 
     return vae, encoder, decoder
 
@@ -109,7 +100,8 @@ def build_vae() -> Tuple[Model, Model, Model]:
 ### myTL.py ###
 
 
-def create_soc_estimator(input_dim=21):
+# Create SOC Estimator Model
+def create_soc_estimator(input_dim: int = 21) -> tf.keras.Sequential:
     """
     创建SOC估计模型。
 
@@ -119,7 +111,7 @@ def create_soc_estimator(input_dim=21):
     # Define soc estimator model
     soc_estimator = tf.keras.Sequential(
         [
-            layers.Dense(512, activation="relu", input_shape=(21,)),
+            layers.Dense(512, activation="relu", input_shape=(input_dim,)),
             layers.Dense(512, activation="relu"),
             layers.Dense(256, activation="relu"),
             layers.Dense(256, activation="relu"),
@@ -136,14 +128,14 @@ def create_soc_estimator(input_dim=21):
     return soc_estimator
 
 
-def create_feature_extractor(input_dim=21):
+# Create Feature Extractor Model
+def create_feature_extractor(input_dim: int = 21) -> tf.keras.Sequential:
     """
     创建特征提取器模型。
 
     :param input_dim: 输入特征的维度，默认21维
     :return: 特征提取模型
     """
-
     # Define feature extractor model
     feature_extractor = tf.keras.Sequential(
         [
@@ -158,24 +150,14 @@ def create_feature_extractor(input_dim=21):
     return feature_extractor
 
 
-def create_task_net(input_dim=21):
+# Create Regression Task Network
+def create_task_net(input_dim: int = 21) -> tf.keras.Sequential:
     """
     创建回归任务网络模型。
 
     :param input_dim: 输入特征的维度，默认21维
     :return: 回归任务模型
     """
-    # model = tf.keras.Sequential(
-    #     [
-    #         layers.Dense(256, activation="relu", input_shape=(input_dim,)),
-    #         layers.Dense(256, activation="relu"),
-    #         layers.Dense(128, activation="relu"),
-    #         layers.Dense(128, activation="relu"),
-    #         layers.Dense(64, activation="relu"),
-    #         layers.Dense(1),
-    #     ]
-    # )
-    # Define regression model
     task_net = tf.keras.Sequential(
         [
             layers.Dense(256, activation="relu"),
@@ -189,127 +171,43 @@ def create_task_net(input_dim=21):
     return task_net
 
 
-# class CoralModel(tf.keras.Model):
-#     def __init__(self, soc_estimator, feature_extractor, task_net, **kwargs):
-#         """
-#         初始化 CORAL 模型。
-
-#         :param soc_estimator: SOC估计网络
-#         :param feature_extractor: 特征提取器网络
-#         :param task_net: 回归任务网络
-#         :param kwargs: 其他参数
-#         """
-#         super(CoralModel, self).__init__(**kwargs)
-#         self.soc_estimator = soc_estimator
-#         self.feature_extractor = feature_extractor
-#         self.task_net = task_net
-
-#     def call(self, Fts, training=False):
-#         """
-#         前向传播过程。通过SOC估计、特征提取和回归任务网络进行推理。
-
-#         :param Fts: 输入特征
-#         :param training: 是否在训练模式下
-#         :return: 回归任务的预测结果
-#         """
-#         # 使用SOC估计器进行预测
-#         Predicted_SOC = self.soc_estimator(Fts)
-
-#         # 特征提取器提取特征
-#         extracted_features = self.feature_extractor(Fts)
-
-#         # 合并提取的特征与SOC预测结果
-#         Extracted_features_Predicted_SOC = tf.concat(
-#             [extracted_features, Predicted_SOC], axis=1
-#         )
-
-#         # 通过回归任务网络进行预测
-#         pred_soh = self.task_net(Extracted_features_Predicted_SOC)
-#         return pred_soh
-
-#     def compile(self, optimizer):
-#         """
-#         编译模型，设置优化器。
-
-#         :param optimizer: 优化器
-#         """
-#         super(CoralModel, self).compile()
-#         self.optimizer = optimizer
-
-#     def train_step(self, data):
-#         """
-#         自定义训练步骤。
-
-#         :param data: 输入数据，包含源域和目标域的数据
-#         :return: 包含损失函数、SOC损失、任务损失和CORAL损失的字典
-#         """
-#         # 拆分数据：源域（source）和目标域（target）
-#         x_source, soc_source, y_source, x_target, soc_target, y_target = data
-
-#         with tf.GradientTape() as tape:
-#             # 使用 SOC 估计器进行预测
-#             soc_pred_source = self.soc_estimator(x_source)
-#             soc_pred_target = self.soc_estimator(x_target)
-
-#             # 计算 SOC 的 MSE 损失
-#             soc_loss_source = tf.keras.losses.MeanSquaredError()(
-#                 soc_source, soc_pred_source
-#             )
-#             soc_loss_target = tf.keras.losses.MeanSquaredError()(
-#                 soc_target, soc_pred_target
-#             )
-
-#             # 提取源域和目标域的特征
-#             source_features = self.feature_extractor(x_source)
-#             target_features = self.feature_extractor(x_target)
-
-#             # 计算 CORAL 损失
-#             coral = coral_loss(source_features, target_features)
-
-#             # 使用模型进行任务预测
-#             preds_source = self(x_source, training=True)
-#             preds_target = self(x_target, training=True)
-
-#             # 计算任务回归损失（MSE）
-#             task_loss_source = tf.keras.losses.MeanSquaredError()(
-#                 y_source, preds_source
-#             )
-#             task_loss_target = tf.keras.losses.MeanSquaredError()(
-#                 y_target, preds_target
-#             )
-
-#             # 总损失：加权损失组合
-#             total_loss = (
-#                 2.5 * soc_loss_target
-#                 + 3 * task_loss_target
-#                 + 1.5 * soc_loss_source
-#                 + 2.5 * task_loss_source
-#             ) * 0.075 + coral
-
-#         # 计算梯度并更新参数
-#         grads = tape.gradient(total_loss, self.trainable_variables)
-#         self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
-
-
-#         # 返回各个损失的字典
-#         return {
-#             "loss": total_loss,
-#             "task_loss_source": task_loss_source,
-#             "task_loss_target": task_loss_target,
-#             "coral_loss": coral,
-#             "soc_loss_source": soc_loss_source,
-#             "soc_loss_target": soc_loss_target,
-#         }
-
-
 class CoralModel(tf.keras.Model):
-    def __init__(self, soc_estimator, feature_extractor, task_net, **kwargs):
+    """
+    A custom Keras model that performs SOC estimation and task regression using
+    a combination of SOC Estimator, Feature Extractor, and Task Network.
+
+    Attributes:
+        soc_estimator: A model that estimates SOC.
+        feature_extractor: A model that extracts features.
+        task_net: A model for task regression.
+    """
+
+    def __init__(
+        self,
+        soc_estimator: tf.keras.Model,
+        feature_extractor: tf.keras.Model,
+        task_net: tf.keras.Model,
+        **kwargs
+    ):
+        """
+        Initializes the Coral model with SOC Estimator, Feature Extractor, and Task Network.
+
+        :param soc_estimator: SOC Estimation model.
+        :param feature_extractor: Feature extraction model.
+        :param task_net: Task network model for regression.
+        """
         super(CoralModel, self).__init__(**kwargs)
         self.soc_estimator = soc_estimator
         self.feature_extractor = feature_extractor
         self.task_net = task_net
 
-    def call(self, Fts):
+    def call(self, Fts: tf.Tensor) -> tf.Tensor:
+        """
+        Perform forward propagation through SOC Estimator, Feature Extractor, and Task Network.
+
+        :param Fts: Input features.
+        :return: Task network prediction (SOH).
+        """
         Predicted_SOC = self.soc_estimator(Fts)
         extracted_features = self.feature_extractor(Fts)
         Extracted_features_Predicted_SOC = tf.concat(
@@ -318,18 +216,32 @@ class CoralModel(tf.keras.Model):
         pred_soh = self.task_net(Extracted_features_Predicted_SOC)
         return pred_soh
 
-    def compile(self, optimizer):
+    def compile(self, optimizer: tf.keras.optimizers.Optimizer):
+        """
+        Compile the model with a specified optimizer.
+
+        :param optimizer: Optimizer for model training.
+        """
         super(CoralModel, self).compile()
         self.optimizer = optimizer
 
-    def train_step(self, data):
+    def train_step(
+        self,
+        data: Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor],
+    ) -> dict:
+        """
+        Custom training step for the Coral model.
+
+        :param data: A tuple containing source and target data for training.
+        :return: A dictionary containing various loss components.
+        """
         x_source, soc_source, y_source, x_target, soc_target, y_target = data
 
         with tf.GradientTape() as tape:
-            # Predict SOC values using soc_estimator
             soc_pred_source = self.soc_estimator(x_source)
             soc_pred_target = self.soc_estimator(x_target)
-            # Add SOC MSE loss
+
+            # SOC MSE loss
             soc_loss_source = tf.keras.losses.MeanSquaredError()(
                 soc_source, soc_pred_source
             )
@@ -340,10 +252,12 @@ class CoralModel(tf.keras.Model):
             source_features = self.feature_extractor(x_source)
             target_features = self.feature_extractor(x_target)
 
+            # CORAL loss
             coral = coral_loss(source_features, target_features)
+
+            # Task regression loss (MSE)
             preds_source = self(x_source, training=True)
             preds_target = self(x_target, training=True)
-
             task_loss_source = tf.keras.losses.MeanSquaredError()(
                 y_source, preds_source
             )
